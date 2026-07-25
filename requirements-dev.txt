@@ -2,4 +2,4 @@
 -r requirements.txt
 pytest>=7.4
 responses>=0.25
-dqcheck @ git+https://github.com/ahtarek28-coder/data-quality-toolkit.git
+dqcheck[duckdb] @ git+https://github.com/ahtarek28-coder/data-quality-toolkit.git

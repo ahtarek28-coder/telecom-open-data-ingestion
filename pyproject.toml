@@ -13,7 +13,7 @@ dependencies = [
 dev = ["pytest>=7.4", "responses>=0.25"]
 # Not a library dependency of odingest itself -- only needed to run the
 # dq_check step in dags/telecom_open_data_dag.py.
-dq = ["dqcheck @ git+https://github.com/ahtarek28-coder/data-quality-toolkit.git"]
+dq = ["dqcheck[duckdb] @ git+https://github.com/ahtarek28-coder/data-quality-toolkit.git"]
 
 [project.scripts]
 odingest = "odingest.cli:main"
