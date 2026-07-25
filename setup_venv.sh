@@ -9,7 +9,7 @@ rm -rf .venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -e ".[dev,dq]"
 deactivate
 
 echo "Done. Activate with: source $(pwd)/.venv/bin/activate"

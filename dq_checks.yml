@@ -1,0 +1,62 @@
+# dqcheck config for this project's own database. Run with:
+#   python -m dqcheck.cli run --config dq_checks.yml
+#
+# Values below were taken from actually querying the live-fetched data
+# (`select distinct method/issue_type/indicator_id from ...`), not assumed --
+# the real FCC dataset covers more than pure telecom (broadcast/radio
+# complaints too), which is why the accepted-values lists are broader than
+# "Cable/Wireless/Wired".
+
+connection: "duckdb:///telecom_open_data.duckdb"
+
+checks:
+  - type: unique
+    table: raw.fcc_complaints
+    columns: [id]
+
+  - type: not_null
+    table: raw.fcc_complaints
+    column: issue
+
+  - type: accepted_values
+    table: raw.fcc_complaints
+    column: method
+    values:
+      - ""
+      - "Amateur Radio"
+      - "Broadcast"
+      - "Cable"
+      - "DSL"
+      - "Fiber"
+      - "Interference"
+      - "Internet (VOIP)"
+      - "Phone"
+      - "Satellite"
+      - "Tower"
+      - "Wired"
+      - "Wireless"
+      - "Wireless (cell phone/other mobile device)"
+
+  - type: accepted_values
+    table: raw.fcc_complaints
+    column: issue_type
+    values: [Accessibility, Emergency, Internet, Phone, Radio, TV]
+
+  - type: row_count_between
+    table: raw.fcc_complaints
+    min_rows: 1
+    name: fcc_complaints_not_empty
+
+  - type: not_null
+    table: raw.worldbank_indicators
+    column: indicator_id
+
+  - type: accepted_values
+    table: raw.worldbank_indicators
+    column: indicator_id
+    values: [IT.CEL.SETS.P2, IT.NET.BBND.P2, IT.NET.USER.ZS]
+
+  - type: row_count_between
+    table: raw.worldbank_indicators
+    min_rows: 1
+    name: worldbank_indicators_not_empty

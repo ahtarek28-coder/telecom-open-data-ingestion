@@ -7,7 +7,7 @@ Ingests real, public, telecom-related data via legitimate no-auth APIs — not s
 
 ## Status
 
-Fully implemented and verified against the **live** APIs (not mocked, not synthetic): 16/16 unit tests pass (HTTP mocked there, for speed/determinism), and a real run pulled 2,650 rows per World Bank indicator and 3,500 real FCC complaint records across two separate incremental fetches — with zero duplicate records, confirming the checkpoint mechanism actually works.
+Fully implemented and verified against the **live** APIs (not mocked, not synthetic): 16/16 unit tests pass (HTTP mocked there, for speed/determinism), and a real run pulled 2,650 rows per World Bank indicator and 3,500 real FCC complaint records across two separate incremental fetches — with zero duplicate records, confirming the checkpoint mechanism actually works. An Airflow DAG (with a `dqcheck` data-quality step, 8/8 checks passing) is written and command-verified; not yet run under a live Airflow scheduler.
 
 ## Why APIs, not a crawler
 
@@ -52,6 +52,23 @@ python -c "import duckdb; con = duckdb.connect('telecom_open_data.duckdb'); prin
 python -c "import duckdb; con = duckdb.connect('telecom_open_data.duckdb'); print(con.sql('select * from analytics.mobile_penetration_latest limit 10').df())"
 ```
 
+Or run data quality checks on what you've loaded, via [dqcheck](https://github.com/ahtarek28-coder/data-quality-toolkit) (`pip install -e ".[dq]"`, or it's already included in `.[dev,dq]`/`setup_venv.sh`):
+
+```bash
+python -m dqcheck.cli run --config dq_checks.yml
+```
+
+### Running under Airflow
+
+Same conventions as [telecom-cx-analytics-pipeline](https://github.com/ahtarek28-coder/telecom-cx-analytics-pipeline): Airflow gets its own venv, this project's `python` is resolved by absolute path via `PIPELINE_VENV_BIN` (defaults to `<project>/.venv/bin`), and every task pins `cwd` to the project root since odingest's CLI options default to relative paths.
+
+```bash
+mkdir -p "$AIRFLOW_HOME/dags"
+ln -s "$(pwd)/dags/telecom_open_data_dag.py" "$AIRFLOW_HOME/dags/"
+```
+
+Then trigger `telecom_open_data_ingestion` from the Airflow UI or `airflow dags trigger telecom_open_data_ingestion`. The DAG runs `fetch_worldbank` and `fetch_fcc_complaints` in parallel, then `load_duckdb`, then `dq_check` — verified: all four commands run cleanly with `cwd` pinned exactly the way `BashOperator(cwd=...)` invokes them.
+
 ## Design notes
 
 - **Politeness by default:** `PoliteClient` enforces a minimum interval between requests, retries transient errors (429/5xx) with exponential backoff, and identifies itself with a real User-Agent — the baseline courtesy expected when hitting a public API repeatedly.
@@ -75,5 +92,6 @@ python -m pytest tests/ -v
 - [x] DuckDB loader + analytics views
 - [x] Unit tests (16/16, mocked HTTP)
 - [x] Verified against live APIs, including incremental correctness (0 duplicates across 2 runs)
-- [ ] Airflow DAG scheduling regular incremental pulls (natural next step, same pattern as [telecom-cx-analytics-pipeline](https://github.com/ahtarek28-coder/telecom-cx-analytics-pipeline))
+- [x] Airflow DAG (`dags/telecom_open_data_dag.py`) scheduling regular incremental pulls, plus a `dqcheck` step (`dq_checks.yml`, 8/8 checks passing against the real data)
+- [ ] Run the DAG under an actual Airflow scheduler (written and verified command-by-command, not yet run live under Airflow itself -- see [telecom-cx-analytics-pipeline](https://github.com/ahtarek28-coder/telecom-cx-analytics-pipeline) for that verification step)
 - [ ] Join FCC complaint trends with World Bank penetration data for a cross-source view
