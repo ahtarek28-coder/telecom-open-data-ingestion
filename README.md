@@ -24,6 +24,8 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
+Or, if you'd rather not install it as a package: `pip install -r requirements-dev.txt` (or `requirements.txt` for just the runtime deps) — both mirror `pyproject.toml`, kept in sync manually. Either way, `setup_venv.sh` does the `pip install -e ".[dev]"` version of this for you, rebuilding the venv from scratch (safe to rerun any time, including after moving the project folder).
+
 ## Usage
 
 ```bash

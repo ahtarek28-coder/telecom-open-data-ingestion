@@ -1,0 +1,4 @@
+# Mirrors [project.optional-dependencies].dev in pyproject.toml.
+-r requirements.txt
+pytest>=7.4
+responses>=0.25
