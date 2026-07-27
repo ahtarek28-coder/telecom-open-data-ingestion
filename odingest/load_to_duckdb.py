@@ -30,14 +30,23 @@ def _load_fcc_complaints(con: duckdb.DuckDBPyConnection, raw_dir: Path) -> None:
         print(f"Skipped fcc_complaints: no data at {complaints_file}")
         return
 
+    # complaints.jsonl is an append-only log written across possibly many
+    # ingestion runs -- retries, overlapping manual triggers, or a checkpoint
+    # race can all cause the same complaint to get appended more than once.
+    # Deduplicate by id at load time so raw.fcc_complaints always represents
+    # distinct complaints regardless of how messy the raw log gets.
     con.execute(
         f"""
         create or replace table raw.fcc_complaints as
-        select * from read_json_auto('{complaints_file.as_posix()}', format='newline_delimited')
+        select * exclude (_dq_row_num) from (
+            select *, row_number() over (partition by id order by ticket_created desc) as _dq_row_num
+            from read_json_auto('{complaints_file.as_posix()}', format='newline_delimited')
+        )
+        where _dq_row_num = 1
         """
     )
     n = con.execute("select count(*) from raw.fcc_complaints").fetchone()[0]
-    print(f"Loaded raw.fcc_complaints: {n:,} rows")
+    print(f"Loaded raw.fcc_complaints: {n:,} rows (deduplicated by id)")
 
     con.execute(
         """
