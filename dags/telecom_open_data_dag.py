@@ -30,7 +30,7 @@ TASK_CWD = str(PROJECT_ROOT)
 with DAG(
     dag_id="telecom_open_data_ingestion",
     description="Fetch real telecom public data (FCC complaints, World Bank indicators) and load into DuckDB",
-    schedule="@daily",
+    schedule="@hourly",
     start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["telecom", "open-data", "ingestion"],

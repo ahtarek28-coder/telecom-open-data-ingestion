@@ -36,11 +36,19 @@ checks:
       - "Wired"
       - "Wireless"
       - "Wireless (cell phone/other mobile device)"
+      - "Other"
 
   - type: accepted_values
     table: raw.fcc_complaints
     column: issue_type
-    values: [Accessibility, Emergency, Internet, Phone, Radio, TV]
+    values: 
+      - Accessibility
+      - Emergency
+      - Internet
+      - Phone
+      - Radio
+      - TV
+      - Request for Dispute Assistance
 
   - type: row_count_between
     table: raw.fcc_complaints
@@ -54,7 +62,10 @@ checks:
   - type: accepted_values
     table: raw.worldbank_indicators
     column: indicator_id
-    values: [IT.CEL.SETS.P2, IT.NET.BBND.P2, IT.NET.USER.ZS]
+    values: 
+      - IT.CEL.SETS.P2
+      - IT.NET.BBND.P2
+      - IT.NET.USER.ZS
 
   - type: row_count_between
     table: raw.worldbank_indicators
