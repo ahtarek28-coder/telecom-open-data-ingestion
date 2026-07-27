@@ -62,6 +62,8 @@ python -m dqcheck.cli run --config dq_checks.yml
 
 Same conventions as [telecom-cx-analytics-pipeline](https://github.com/ahtarek28-coder/telecom-cx-analytics-pipeline): Airflow gets its own venv, this project's `python` is resolved by absolute path via `PIPELINE_VENV_BIN` (defaults to `<project>/.venv/bin`), and every task pins `cwd` to the project root since odingest's CLI options default to relative paths.
 
+`fetch_worldbank` uses dynamic task mapping (`BashOperator.partial(...).expand(...)`) — one parallel task instance per indicator instead of a single task fetching all three sequentially, so a failing or slow indicator doesn't block or force a rerun of the others. `WORLDBANK_INDICATORS` is duplicated in the DAG file rather than imported from `odingest.worldbank.DEFAULT_INDICATORS`, since the DAG is parsed by Airflow's own venv, which deliberately doesn't have `odingest` installed.
+
 ```bash
 mkdir -p "$AIRFLOW_HOME/dags"
 ln -s "$(pwd)/dags/telecom_open_data_dag.py" "$AIRFLOW_HOME/dags/"

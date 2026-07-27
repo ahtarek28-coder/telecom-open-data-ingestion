@@ -27,6 +27,11 @@ PYTHON_BIN = PIPELINE_VENV_BIN / "python"
 # (the same relative-path gotcha already hit and fixed in the other DAG).
 TASK_CWD = str(PROJECT_ROOT)
 
+# Mirrors odingest.worldbank.DEFAULT_INDICATORS -- duplicated here rather
+# than imported, since this DAG file is parsed by Airflow's own venv, which
+# deliberately doesn't have odingest (or its deps) installed.
+WORLDBANK_INDICATORS = ["IT.CEL.SETS.P2", "IT.NET.BBND.P2", "IT.NET.USER.ZS"]
+
 with DAG(
     dag_id="telecom_open_data_ingestion",
     description="Fetch real telecom public data (FCC complaints, World Bank indicators) and load into DuckDB",
@@ -36,10 +41,17 @@ with DAG(
     tags=["telecom", "open-data", "ingestion"],
 ) as dag:
 
-    fetch_worldbank = BashOperator(
+    # Dynamic task mapping: one parallel task instance per indicator instead
+    # of a single task fetching all three sequentially -- a failing/slow
+    # indicator no longer blocks or reruns the others.
+    fetch_worldbank = BashOperator.partial(
         task_id="fetch_worldbank",
-        bash_command=f"{PYTHON_BIN} -m odingest.cli fetch-worldbank",
         cwd=TASK_CWD,
+    ).expand(
+        bash_command=[
+            f"{PYTHON_BIN} -m odingest.cli fetch-worldbank --indicator {indicator}"
+            for indicator in WORLDBANK_INDICATORS
+        ]
     )
 
     fetch_fcc_complaints = BashOperator(
