@@ -9,3 +9,4 @@ build/
 dist/
 *.duckdb
 data/
+logs/

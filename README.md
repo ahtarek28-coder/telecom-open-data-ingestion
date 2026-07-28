@@ -71,6 +71,8 @@ ln -s "$(pwd)/dags/telecom_open_data_dag.py" "$AIRFLOW_HOME/dags/"
 
 Then trigger `telecom_open_data_ingestion` from the Airflow UI or `airflow dags trigger telecom_open_data_ingestion`. The DAG runs `fetch_worldbank` and `fetch_fcc_complaints` in parallel, then `load_duckdb`, then `dq_check` — verified: all four commands run cleanly with `cwd` pinned exactly the way `BashOperator(cwd=...)` invokes them.
 
+Every task's output is also appended to a single running log at `logs/dag_runs.log` (in addition to Airflow's own per-task logs), timestamped and labeled per task — `tail -f logs/dag_runs.log` to watch a run live without going through the UI.
+
 ## Design notes
 
 - **Politeness by default:** `PoliteClient` enforces a minimum interval between requests, retries transient errors (429/5xx) with exponential backoff, and identifies itself with a real User-Agent — the baseline courtesy expected when hitting a public API repeatedly.

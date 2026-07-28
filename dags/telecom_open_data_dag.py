@@ -32,6 +32,22 @@ TASK_CWD = str(PROJECT_ROOT)
 # deliberately doesn't have odingest (or its deps) installed.
 WORLDBANK_INDICATORS = ["IT.CEL.SETS.P2", "IT.NET.BBND.P2", "IT.NET.USER.ZS"]
 
+# Every task's combined stdout/stderr is duplicated into one running log
+# file for the whole project (in addition to Airflow's own per-task logs)
+# via `tee -a`. `pipefail` is required here -- without it, a failing `cmd`
+# piped into `tee` (which itself succeeds) would report exit code 0 and
+# Airflow would never notice the task actually failed.
+LOG_FILE = PROJECT_ROOT / "logs" / "dag_runs.log"
+
+
+def with_logging(cmd: str, label: str) -> str:
+    return (
+        f'mkdir -p "{LOG_FILE.parent}" && '
+        f'echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) [{label}] ===" >> "{LOG_FILE}" && '
+        f'set -o pipefail && ({cmd}) 2>&1 | tee -a "{LOG_FILE}"'
+    )
+
+
 with DAG(
     dag_id="telecom_open_data_ingestion",
     description="Fetch real telecom public data (FCC complaints, World Bank indicators) and load into DuckDB",
@@ -49,7 +65,10 @@ with DAG(
         cwd=TASK_CWD,
     ).expand(
         bash_command=[
-            f"{PYTHON_BIN} -m odingest.cli fetch-worldbank --indicator {indicator}"
+            with_logging(
+                f"{PYTHON_BIN} -m odingest.cli fetch-worldbank --indicator {indicator}",
+                f"fetch_worldbank:{indicator}",
+            )
             for indicator in WORLDBANK_INDICATORS
         ]
     )
@@ -60,19 +79,24 @@ with DAG(
         # is a safety cap (not a real limit for a caught-up daily run) in
         # case the checkpoint is ever missing/reset and would otherwise try
         # to pull years of backlog in one go.
-        bash_command=f"{PYTHON_BIN} -m odingest.cli fetch-fcc-complaints --max-pages 20 --page-size 500",
+        bash_command=with_logging(
+            f"{PYTHON_BIN} -m odingest.cli fetch-fcc-complaints --max-pages 20 --page-size 500",
+            "fetch_fcc_complaints",
+        ),
         cwd=TASK_CWD,
     )
 
     load_duckdb = BashOperator(
         task_id="load_duckdb",
-        bash_command=f"{PYTHON_BIN} -m odingest.cli load-duckdb",
+        bash_command=with_logging(f"{PYTHON_BIN} -m odingest.cli load-duckdb", "load_duckdb"),
         cwd=TASK_CWD,
     )
 
     dq_check = BashOperator(
         task_id="dq_check",
-        bash_command=f"{PYTHON_BIN} -m dqcheck.cli run --config dq_checks.yml",
+        bash_command=with_logging(
+            f"{PYTHON_BIN} -m dqcheck.cli run --config dq_checks.yml", "dq_check"
+        ),
         cwd=TASK_CWD,
     )
 
